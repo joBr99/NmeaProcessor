@@ -1,4 +1,4 @@
--- require 'helper'
+--require 'helper'
 require("gps.helper")
 
 
@@ -6,7 +6,7 @@ NmeaProcessor = {
   --  Validity of latest fix
   valid = false,
   rawTime = "000000",
- 	-- Latitude
+        -- Latitude
   latitude = 0,
   -- Longitude
   longitude = 0,
@@ -19,8 +19,7 @@ function NmeaProcessor:new (o)
      o = o or {}
      setmetatable(o, self)
      self.__index = self
-     
-     
+
      return o
 end
 
@@ -58,21 +57,33 @@ end
 
 function NmeaProcessor:checkSum(line)
   -- Checksum is there
-  if string.sub(line,-3,-3) == "*" then
+  if(string.find(line, "*") ~= nil) then
+    locChecksum = string.find(line, "*")+1
     local val = 0
+    local val_before = 0
     -- iterate over each byte
-    for c in string.sub(line,2,-4):gmatch(".") do
+
+    --print("_DEBUG_ : "..line)
+    --print("_DEBUG_ : "..string.sub(line,2,locChecksum-2))
+
+    for c in string.sub(line,2,locChecksum-1):gmatch(".") do
+      val_before = val
       val = bxor(val,string.byte(c))
+      --print("_DEBUG_ : "..string.format("%02x", val):upper())
     end
     --Calculated Checksum to HEX
-    val = string.format("%02x", val):upper()
-    if ( string.sub(line,-2):upper() == val ) then
+    val = string.format("%02x", val_before):upper()
+
+    --print("_DEBUG_ Calc CheckSum: "..val.." : "..val_before.."   StrChecksum: "..string.sub(line,locChecksum,locChecksum+2):upper())
+    --print("_DEBUG_ "..string.sub(line,locChecksum,locChecksum+2):upper().." "..val)
+    --if ( string.sub(line,locChecksum,locChecksum+2):upper() == val ) then
+    if ( string.find(string.sub(line,locChecksum,locChecksum+2):upper(), val) ) then
       return true
     else
       return false
     end
   else
-    return true
+    return false
   end
 end
 
@@ -83,7 +94,7 @@ function NmeaProcessor:processline(line)
     local data = split(line,",")
 
     if data[1] == "$GPRMC" then
-      
+
       if string.len(tostring(data[2])) >= 6 then
         self.rawTime = data[2]
       end
@@ -100,7 +111,7 @@ function NmeaProcessor:processline(line)
               long = long * -1
           end
           self.longitude = long
-   
+
           local lat = tonumber(string.sub(data[6],1,3)) + ( tonumber(string.sub(data[6],4)) /60 )
           if data[7] ~= "E" then
               lat = lat * -1
@@ -108,29 +119,13 @@ function NmeaProcessor:processline(line)
           self.latitude = lat
           --self.speed = data[8] -- ??? -> Testing
       end
-                  
+
       if string.len(tostring(data[10])) >= 6 then
         self.rawDate = data[10]
       end
 
     end
   else
-    print("NonValid")
+    --print("NonValid")
   end
 end
-
-
-
-
--- gps = NmeaProcessor:new(nil)
--- --gps:processline("$GPRMC,163916.00,A,4959.95543,N,00759.87949,E,0.313,,171118,,,A*7B")
--- gps:processline("$GPRMC,0A,49N,00,E,0118,$GPVTG,,T,,M,0.688,N,1.274,K,A*25")
--- 
--- print("Uhrzeit: "..gps:getHour()..":"..gps:getMinute()..":"..gps:getSecond())
--- print('GPS Fix: '..tostring(gps:isFixValid()))
--- print('Longitude: '..gps:getLongitude())
--- print('Latitude: '..gps:getLatitude())
--- print('Altitude: '..gps:getSpeed())
--- print("Datum: "..gps:getDay().."."..gps:getMonth().."."..gps:getYear())
--- 
-
